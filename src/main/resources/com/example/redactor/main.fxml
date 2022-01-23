@@ -23,6 +23,8 @@
                   <Button fx:id="blurFilterButton" mnemonicParsing="false" style="-fx-background-color: #FF0000;" text="Blur" />
                   <Button fx:id="invertFilterButton" mnemonicParsing="false" style="-fx-background-color: #00FF00;" text="Invert" />
                   <Button fx:id="sepiaFilterButton" mnemonicParsing="false" style="-fx-background-color: #0086FF;" text="Sepia" />
+                  <Button fx:id="saveSchemeButton" mnemonicParsing="false" text="Save script" />
+                  <Button fx:id="loadSchemeButton" mnemonicParsing="false" text="Load script" />
                   <Button fx:id="saveImageButton" mnemonicParsing="false" style="-fx-background-color: #00FF00;" text="Save" />
                </children>
             </VBox>

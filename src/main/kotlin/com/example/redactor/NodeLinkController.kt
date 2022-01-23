@@ -14,10 +14,10 @@ import javafx.scene.input.DataFormat
 import javafx.scene.input.TransferMode
 import javafx.scene.layout.AnchorPane
 import javafx.scene.layout.Pane
+import javafx.scene.layout.VBox
 import javafx.scene.paint.Color
 import javafx.scene.shape.Circle
 import javafx.scene.shape.CubicCurve
-import java.net.URL
 import java.util.*
 
 
@@ -30,7 +30,7 @@ var stateAddNode = DataFormat("nodeAdd")
 
 
 
-class NodeLinkController(private val mainParent: DraggableNodeController) : AnchorPane() {
+class NodeLinkController(val mainParent: DraggableNodeController) : VBox() {
     var linked: Boolean = false
     var state = ""
     var linkClass = "image"
@@ -44,7 +44,7 @@ class NodeLinkController(private val mainParent: DraggableNodeController) : Anch
     private var link: Link? = null
 
     @FXML
-    lateinit var mainLayout: AnchorPane
+    lateinit var mainLayout: VBox
 
     @FXML
     lateinit var nodeLinkName: Label
@@ -61,6 +61,7 @@ class NodeLinkController(private val mainParent: DraggableNodeController) : Anch
 
         id = UUID.randomUUID().toString()
         circleItem.onDragDetected = EventHandler { mouseEvent ->
+
             if (link !== null && state === "input") {
                 (link!!.parent as Pane).children.remove(link)
                 this.sourceMainParent!!.linkedNodes.remove(this)
@@ -68,22 +69,21 @@ class NodeLinkController(private val mainParent: DraggableNodeController) : Anch
                 linked = false
                 link = null
             }
+
             if (superParent == null) superParent = mainParent.parent as AnchorPane
-            tempLink.setLocalStartXY(getCircleCenterLocaleXY(mainLayout, circleItem))
+            tempLink.setLocalStartXY(getCircleCenterLocaleXY(this, circleItem))
 
             superParent!!.children.add(tempLink)
-            tempLink.setStart(
-                Point2D(
-                    mainParent.layoutX + tempLink.localStartX, mainParent.layoutY + tempLink.localStartY
-                )
-            )
+            tempLink.setStart(Point2D(mainParent.layoutX + tempLink.localStartX, mainParent.layoutY + tempLink.localStartY))
             tempLink.isVisible = true
+
             superParent!!.onDragOver = EventHandler { dragEvent ->
                 if (!tempLink.isVisible) tempLink.isVisible = true
                 tempLink.setEnd(Point2D(dragEvent.x, dragEvent.y))
                 dragEvent.acceptTransferModes(*TransferMode.ANY)
                 dragEvent.consume()
             }
+
             superParent!!.onDragDropped = EventHandler { dragEvent ->
                 superParent!!.onDragOver = null
                 superParent!!.onDragDropped = null
@@ -93,6 +93,7 @@ class NodeLinkController(private val mainParent: DraggableNodeController) : Anch
                 dragEvent.isDropCompleted = false
                 dragEvent.consume()
             }
+
             val content = ClipboardContent()
             content[stateAddLink] = state
             content[parentId] = mainParent.id
@@ -100,6 +101,7 @@ class NodeLinkController(private val mainParent: DraggableNodeController) : Anch
             circleItem.startDragAndDrop(*TransferMode.ANY).setContent(content)
             mouseEvent.consume()
         }
+
         circleItem.onDragOver = EventHandler { dragEvent ->
             if (
                 dragEvent.dragboard.getContent(stateAddLink) != state &&
@@ -111,43 +113,16 @@ class NodeLinkController(private val mainParent: DraggableNodeController) : Anch
             }
             dragEvent.consume()
         }
+
         circleItem.onDragDropped = EventHandler { dragEvent ->
-            if (superParent == null) {
-                superParent = mainParent.parent as AnchorPane
-            }
-
-
-            val tmp = Link()
-            val sourceMainParent = (dragEvent.gestureSource as Node).parent.parent as NodeLinkController
-            this.sourceMainParent = sourceMainParent
-            if (state == "input") {
-                linked = true
-                link = tmp
-                factory?.invoke(sourceMainParent)
-                sourceMainParent.linkedNodes.add(this)
-            }
-            if (sourceMainParent.state == "input") {
-                sourceMainParent.sourceMainParent = this
-                sourceMainParent.factory?.invoke(this)
-                sourceMainParent.linked = true
-                sourceMainParent.link = tmp
-                this.linkedNodes.add(sourceMainParent)
-            }
-            tmp.setLocalStartXY(
-                getCircleCenterLocaleXY(
-                    sourceMainParent, dragEvent.gestureSource as Circle
-                )
-            )
-            tmp.setLocalEndXY(getCircleCenterLocaleXY(this, circleItem))
-            tmp.bindStartEnd(
-                sourceMainParent.mainParent, mainParent
-            )
-            superParent!!.children.add(tmp)
+            this.connection(dragEvent.gestureSource as Circle)
 
             dragEvent.isDropCompleted = true
             dragEvent.consume()
         }
+
         circleItem.onDragDone = EventHandler { dragEvent ->
+
             if (superParent == null) {
                 superParent = mainParent.parent as AnchorPane
             }
@@ -158,6 +133,49 @@ class NodeLinkController(private val mainParent: DraggableNodeController) : Anch
             dragEvent.consume()
         }
     }
+
+
+
+    fun connection(gestureSource: Circle) {
+
+        if (superParent == null) {
+            superParent = mainParent.parent as AnchorPane
+        }
+
+        val tmp = Link()
+        val sourceMainParent = (gestureSource as Node).parent as NodeLinkController
+
+        if (this.state == "output") {
+
+            tmp.setLocalEndXY(getCircleCenterLocaleXY(sourceMainParent, gestureSource))
+            tmp.setLocalStartXY(getCircleCenterLocaleXY(this, circleItem))
+            tmp.bindStartEnd(mainParent, sourceMainParent.mainParent)
+
+        } else {
+
+            tmp.setLocalEndXY(getCircleCenterLocaleXY(this, circleItem))
+            tmp.setLocalStartXY(getCircleCenterLocaleXY(sourceMainParent, gestureSource))
+            tmp.bindStartEnd(sourceMainParent.mainParent, mainParent)
+        }
+
+        this.sourceMainParent = sourceMainParent
+        if (state == "input") {
+            linked = true
+            link = tmp
+            factory?.invoke(sourceMainParent)
+            sourceMainParent.linkedNodes.add(this)
+        }
+        if (sourceMainParent.state == "input") {
+            sourceMainParent.sourceMainParent = this
+            sourceMainParent.factory?.invoke(this)
+            sourceMainParent.linked = true
+            sourceMainParent.link = tmp
+            this.linkedNodes.add(sourceMainParent)
+        }
+
+        superParent!!.children.add(tmp)
+    }
+
 
     fun deleteAllNodes() {
         if (this.state == "output") {
@@ -185,15 +203,13 @@ class NodeLinkController(private val mainParent: DraggableNodeController) : Anch
         }
     }
 
-    private fun getCircleCenterLocaleXY(mainLayout: Node, circleItem: Circle): Point2D {
-        return mainLayout.parent.parent.localToParent(
-            mainLayout.parent.localToParent(
+    private fun getCircleCenterLocaleXY(mainLayout: NodeLinkController, circleItem: Circle): Point2D {
+        return mainLayout.parent.localToParent(
                 mainLayout.localToParent(
-                    circleItem.parent.localToParent(
                         circleItem.localToParent(circleItem.centerX, circleItem.centerY)
-                    )
+
                 )
-            )
+
         )
     }
 
@@ -259,11 +275,22 @@ class Link : CubicCurve() {
         endY = p.y
     }
 
-    fun bindStartEnd(source1: Node, source2: Node) {
+    fun bindStartEnd(source1: DraggableNodeController, source2: DraggableNodeController) {
         startXProperty().bind(Bindings.add(source1.layoutXProperty(), localStartX))
         startYProperty().bind(Bindings.add(source1.layoutYProperty(), localStartY))
         endXProperty().bind(Bindings.add(source2.layoutXProperty(), localEndX))
         endYProperty().bind(Bindings.add(source2.layoutYProperty(), localEndY))
+
+        source1.widthProperty().addListener { _, old, new ->
+            startXProperty().unbind()
+            this.localStartX += new.toDouble() - old.toDouble()
+            startXProperty().bind(Bindings.add(source1.layoutXProperty(), localStartX))
+        }
+        source1.heightProperty().addListener { _, old, new ->
+            startYProperty().unbind()
+            this.localStartY += new.toDouble() - old.toDouble()
+            startYProperty().bind(Bindings.add(source1.layoutYProperty(), localStartY))
+        }
     }
 
     init {
