@@ -140,7 +140,7 @@ class InputImage : DraggableNodeController() {
     private val link = NodeLinkController(this)
 
     private var file: File? = null
-    
+
     override fun toSerial(): String {
         return "${super.toSerial()} ${this.file.toString()}"
     }
